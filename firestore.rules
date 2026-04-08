@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: albums
+    // Fields:
+    //   - title: string (required)
+    //   - description: string (optional)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - createdAt: number (required)
+    //
+    // Collection: photos
+    // Fields:
+    //   - albumId: string (required)
+    //   - url: string (required)
+    //   - name: string (required)
+    //   - size: number (optional)
+    //   - type: string (optional)
+    //   - createdAt: number (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "niyonzimaemmanuel85@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidAlbum(data) {
+      return data.keys().hasAll(['title', 'date', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.createdAt is number;
+    }
+
+    function isValidPhoto(data) {
+      return data.keys().hasAll(['albumId', 'url', 'name', 'createdAt']) &&
+             data.albumId is string &&
+             data.url is string && data.url.matches("^https://.*") &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 255 &&
+             data.createdAt is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /albums/{albumId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidAlbum(request.resource.data);
+      allow update: if isAdmin() && isValidAlbum(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /photos/{photoId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidPhoto(request.resource.data);
+      allow update: if isAdmin() && isValidPhoto(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}
