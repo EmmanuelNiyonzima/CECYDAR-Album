@@ -152,14 +152,25 @@ function AppContent() {
       await storage.saveAlbum(data);
       toast.success('Album created successfully');
     } else {
-      const files = data as FileList;
-      const uploadPromises = Array.from(files).map(file => storage.uploadPhoto(selectedAlbumId!, file));
+      const files = Array.from(data as FileList);
+      const total = files.length;
+      let completed = 0;
       
-      toast.promise(Promise.all(uploadPromises), {
-        loading: `Uploading ${files.length} photos...`,
-        success: 'All photos uploaded successfully',
-        error: 'Some uploads failed',
-      });
+      const uploadToast = toast.loading(`Uploading 0/${total} photos...`);
+      
+      try {
+        // Sequential upload to avoid memory issues with thousands of images
+        for (const file of files) {
+          await storage.uploadPhoto(selectedAlbumId!, file);
+          completed++;
+          toast.loading(`Uploading ${completed}/${total} photos...`, { id: uploadToast });
+        }
+        
+        toast.success(`Successfully uploaded ${total} images!`, { id: uploadToast });
+      } catch (error) {
+        console.error('Upload failed:', error);
+        toast.error(`Upload failed after ${completed} images.`, { id: uploadToast });
+      }
     }
   };
 
@@ -217,7 +228,7 @@ function AppContent() {
             onBack={() => setView('home')}
             onUploadPhotos={handleUploadPhotos}
             onDeletePhoto={handleDeletePhoto}
-            onPreviewPhoto={(p) => setPreviewPhoto(p)}
+            onPreviewPhoto={(p, url) => setPreviewPhoto({ ...p, url })}
             onAuthRequired={() => {
               toast.error('Please login to download photos');
               setView('login');

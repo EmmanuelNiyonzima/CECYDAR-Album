@@ -3,6 +3,7 @@ import { ArrowLeft, Upload, Download, Trash2, ImageIcon, Calendar, Plus } from '
 import { Button } from '@/components/ui/button';
 import { ImageCard } from './ImageCard';
 import { Album, Photo } from '@/types';
+import { storage } from '@/lib/storage';
 import { motion } from 'motion/react';
 import JSZip from 'jszip';
 import Masonry from 'react-masonry-css';
@@ -15,7 +16,7 @@ interface AlbumDetailProps {
   onBack: () => void;
   onUploadPhotos: () => void;
   onDeletePhoto: (id: string) => void;
-  onPreviewPhoto: (photo: Photo) => void;
+  onPreviewPhoto: (photo: Photo, url: string) => void;
   onAuthRequired: () => void;
 }
 
@@ -43,9 +44,13 @@ export function AlbumDetail({
 
     for (const photo of photos) {
       try {
-        const response = await fetch(photo.url);
-        const blob = await response.blob();
-        folder.file(photo.name, blob);
+        const data = await storage.getPhotoData(photo.id);
+        if (data) {
+          // Convert data URL to blob
+          const response = await fetch(data);
+          const blob = await response.blob();
+          folder.file(photo.name, blob);
+        }
       } catch (error) {
         console.error(`Failed to download ${photo.name}:`, error);
       }
@@ -140,7 +145,7 @@ export function AlbumDetail({
                 photo={photo}
                 isAdmin={isAdmin}
                 isAuthenticated={isAuthenticated}
-                onPreview={() => onPreviewPhoto(photo)}
+                onPreview={(url) => onPreviewPhoto(photo, url)}
                 onDelete={onDeletePhoto}
                 onAuthRequired={onAuthRequired}
               />

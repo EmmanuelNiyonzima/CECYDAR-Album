@@ -1,85 +1,99 @@
 import { Album, Photo } from '@/types';
+import { get, set, update, del } from 'idb-keyval';
 
-// Simple mock storage using LocalStorage
-const STORAGE_KEY_ALBUMS = 'cecydar_albums_v2';
-const STORAGE_KEY_PHOTOS = 'cecydar_photos_v2';
+// Keys for IndexedDB
+const STORAGE_KEY_ALBUMS = 'cecydar_albums_v3';
+const STORAGE_KEY_PHOTOS_INDEX = 'cecydar_photos_index_v3'; // Stores metadata/ids
 
 export const storage = {
   testConnection: async () => {
-    // No-op for local storage
     return true;
   },
 
   getAlbums: (callback: (albums: Album[]) => void) => {
-    const data = localStorage.getItem(STORAGE_KEY_ALBUMS);
-    const albums = data ? JSON.parse(data) : [];
-    callback(albums);
-    // Return a dummy unsubscribe function
+    get<Album[]>(STORAGE_KEY_ALBUMS).then((albums) => {
+      callback(albums || []);
+    });
     return () => {};
   },
   
   saveAlbum: async (album: Omit<Album, 'id' | 'createdAt'>): Promise<string> => {
-    const data = localStorage.getItem(STORAGE_KEY_ALBUMS);
-    const albums = data ? JSON.parse(data) : [];
     const id = Math.random().toString(36).substr(2, 9);
     const newAlbum: Album = {
       ...album,
       id,
       createdAt: Date.now(),
     };
-    localStorage.setItem(STORAGE_KEY_ALBUMS, JSON.stringify([newAlbum, ...albums]));
+    
+    await update<Album[]>(STORAGE_KEY_ALBUMS, (old) => [newAlbum, ...(old || [])]);
     return id;
   },
 
   deleteAlbum: async (id: string) => {
-    const albumsData = localStorage.getItem(STORAGE_KEY_ALBUMS);
-    const albums = albumsData ? JSON.parse(albumsData) : [];
-    const filteredAlbums = albums.filter((a: Album) => a.id !== id);
-    localStorage.setItem(STORAGE_KEY_ALBUMS, JSON.stringify(filteredAlbums));
-
-    const photosData = localStorage.getItem(STORAGE_KEY_PHOTOS);
-    const photos = photosData ? JSON.parse(photosData) : [];
-    const filteredPhotos = photos.filter((p: Photo) => p.albumId !== id);
-    localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(filteredPhotos));
+    // Delete album from index
+    await update<Album[]>(STORAGE_KEY_ALBUMS, (old) => (old || []).filter(a => a.id !== id));
+    
+    // Get all photo IDs for this album
+    const photoIndex = await get<Photo[]>(STORAGE_KEY_PHOTOS_INDEX) || [];
+    const albumPhotos = photoIndex.filter(p => p.albumId === id);
+    
+    // Delete each photo from IndexedDB
+    for (const photo of albumPhotos) {
+      await del(`photo_data_${photo.id}`);
+    }
+    
+    // Update photo index
+    await set(STORAGE_KEY_PHOTOS_INDEX, photoIndex.filter(p => p.albumId !== id));
   },
 
   getPhotosByAlbum: (albumId: string, callback: (photos: Photo[]) => void) => {
-    const data = localStorage.getItem(STORAGE_KEY_PHOTOS);
-    const photos = data ? JSON.parse(data) : [];
-    const filtered = photos.filter((p: Photo) => p.albumId === albumId);
-    callback(filtered);
+    get<Photo[]>(STORAGE_KEY_PHOTOS_INDEX).then((photos) => {
+      const filtered = (photos || []).filter((p) => p.albumId === albumId);
+      callback(filtered);
+    });
     return () => {};
   },
 
+  getPhotoData: async (id: string): Promise<string | undefined> => {
+    return get<string>(`photo_data_${id}`);
+  },
+
   uploadPhoto: async (albumId: string, file: File): Promise<void> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const url = e.target?.result as string;
-        const data = localStorage.getItem(STORAGE_KEY_PHOTOS);
-        const photos = data ? JSON.parse(data) : [];
-        
-        const newPhoto: Photo = {
-          id: Math.random().toString(36).substr(2, 9),
-          albumId,
-          url,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          createdAt: Date.now(),
-        };
-        
-        localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify([newPhoto, ...photos]));
-        resolve();
+      reader.onload = async (e) => {
+        try {
+          const dataUrl = e.target?.result as string;
+          const id = Math.random().toString(36).substr(2, 9);
+          
+          // Store the actual image data separately
+          await set(`photo_data_${id}`, dataUrl);
+          
+          const newPhoto: Photo = {
+            id,
+            albumId,
+            url: '', // We'll fetch this on demand or use a placeholder
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            createdAt: Date.now(),
+          };
+          
+          // Update the index (metadata only)
+          await update<Photo[]>(STORAGE_KEY_PHOTOS_INDEX, (old) => [newPhoto, ...(old || [])]);
+          
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
       };
+      reader.onerror = () => reject(new Error('File reading failed'));
       reader.readAsDataURL(file);
     });
   },
 
   deletePhoto: async (id: string, _url: string) => {
-    const data = localStorage.getItem(STORAGE_KEY_PHOTOS);
-    const photos = data ? JSON.parse(data) : [];
-    const filtered = photos.filter((p: Photo) => p.id !== id);
-    localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(filtered));
+    await update<Photo[]>(STORAGE_KEY_PHOTOS_INDEX, (old) => (old || []).filter(p => p.id !== id));
+    await del(`photo_data_${id}`);
   }
 };

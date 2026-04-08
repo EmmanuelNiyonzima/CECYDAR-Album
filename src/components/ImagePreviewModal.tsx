@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
-import { X, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Download, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Photo } from '@/types';
+import { storage } from '@/lib/storage';
 
 interface ImagePreviewModalProps {
   photo: Photo | null;
@@ -13,6 +14,25 @@ interface ImagePreviewModalProps {
 }
 
 export function ImagePreviewModal({ photo, isOpen, onClose, onNext, onPrev }: ImagePreviewModalProps) {
+  const [imageUrl, setImageUrl] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!photo) return;
+    
+    let isMounted = true;
+    setIsLoading(true);
+    
+    storage.getPhotoData(photo.id).then((data) => {
+      if (isMounted && data) {
+        setImageUrl(data);
+        setIsLoading(false);
+      }
+    });
+    
+    return () => { isMounted = false; };
+  }, [photo?.id]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -34,17 +54,14 @@ export function ImagePreviewModal({ photo, isOpen, onClose, onNext, onPrev }: Im
   if (!photo) return null;
 
   const handleDownload = async () => {
+    if (!imageUrl) return;
     try {
-      const response = await fetch(photo.url);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = imageUrl;
       link.download = photo.name;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Download failed:', error);
     }
@@ -102,16 +119,23 @@ export function ImagePreviewModal({ photo, isOpen, onClose, onNext, onPrev }: Im
             </div>
 
             {/* Image */}
-            <motion.img
-              key={photo.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              src={photo.url}
-              alt={photo.name}
-              className="max-h-full max-w-full object-contain shadow-2xl"
-              referrerPolicy="no-referrer"
-            />
+            {isLoading ? (
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-12 w-12 animate-spin text-white/20" />
+                <span className="text-white/40 text-xs tracking-widest uppercase">Loading High Res...</span>
+              </div>
+            ) : (
+              <motion.img
+                key={photo.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                src={imageUrl}
+                alt={photo.name}
+                className="max-h-full max-w-full object-contain shadow-2xl"
+                referrerPolicy="no-referrer"
+              />
+            )}
           </div>
 
           {/* Bottom Info */}
