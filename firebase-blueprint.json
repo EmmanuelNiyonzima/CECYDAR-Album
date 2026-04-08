@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "Album": {
+      "title": "Album",
+      "description": "A collection of photos",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["title", "date", "createdAt"]
+    },
+    "Photo": {
+      "title": "Photo",
+      "description": "An image within an album",
+      "type": "object",
+      "properties": {
+        "albumId": { "type": "string" },
+        "url": { "type": "string" },
+        "name": { "type": "string" },
+        "size": { "type": "number" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["albumId", "url", "name", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Application user",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/albums/{albumId}": {
+      "schema": "Album",
+      "description": "Photo albums"
+    },
+    "/photos/{photoId}": {
+      "schema": "Photo",
+      "description": "Photos metadata"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and roles"
+    }
+  }
+}

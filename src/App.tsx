@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Login } from './components/Login';
 import { AlbumGrid } from './components/AlbumGrid';
@@ -6,6 +6,9 @@ import { AlbumDetail } from './components/AlbumDetail';
 import { UploadModal } from './components/UploadModal';
 import { ImagePreviewModal } from './components/ImagePreviewModal';
 import { storage } from './lib/storage';
+import { auth, db, googleProvider } from './lib/firebase';
+import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Album, Photo, User } from './types';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
@@ -72,19 +75,40 @@ function AppContent() {
 
   // Auth listener
   useEffect(() => {
-    const savedUser = localStorage.getItem('cecydar_user_v2');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsAuthReady(true);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        let isAdmin = firebaseUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        
+        if (userDoc.exists()) {
+          isAdmin = userDoc.data().role === 'admin' || isAdmin;
+        } else {
+          // Initialize user in Firestore
+          await setDoc(doc(db, 'users', firebaseUser.uid), {
+            email: firebaseUser.email,
+            role: isAdmin ? 'admin' : 'user'
+          });
+        }
+
+        setUser({
+          email: firebaseUser.email,
+          isAdmin: isAdmin
+        });
+      } else {
+        setUser(null);
+      }
+      setIsAuthReady(true);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Connection test
   useEffect(() => {
-    if (isAuthReady && user) {
+    if (isAuthReady) {
       storage.testConnection();
     }
-  }, [isAuthReady, user]);
+  }, [isAuthReady]);
 
   // Real-time albums listener
   useEffect(() => {
@@ -99,22 +123,25 @@ function AppContent() {
     return () => unsubscribe();
   }, [selectedAlbumId]);
 
-  const handleLogin = (email: string) => {
-    const newUser: User = {
-      email,
-      isAdmin: email.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
-    };
-    setUser(newUser);
-    localStorage.setItem('cecydar_user_v2', JSON.stringify(newUser));
-    setView('home');
-    toast.success(`Logged in as ${newUser.isAdmin ? 'Admin' : 'User'}`);
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      setView('home');
+      toast.success('Logged in successfully');
+    } catch (error) {
+      console.error('Login failed:', error);
+      toast.error('Login failed. Please try again.');
+    }
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('cecydar_user_v2');
-    setView('home');
-    toast.info('Logged out successfully');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setView('home');
+      toast.info('Logged out successfully');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const handleAlbumClick = (id: string) => {
