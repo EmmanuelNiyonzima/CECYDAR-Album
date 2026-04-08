@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Trash2, Eye } from 'lucide-react';
+import { Download, Trash2, Maximize2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Photo } from '@/types';
@@ -39,42 +39,69 @@ export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="group relative aspect-square overflow-hidden rounded-xl bg-secondary"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="group relative mb-4 break-inside-avoid overflow-hidden rounded-sm bg-secondary/20"
     >
       <img
         src={photo.url}
         alt={photo.name}
-        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+        className="w-full object-cover transition-transform duration-700 group-hover:scale-105"
         referrerPolicy="no-referrer"
+        loading="lazy"
       />
       
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-        <div className="flex gap-2">
-          <Button size="icon" variant="secondary" className="h-10 w-10 rounded-full" onClick={onPreview}>
-            <Eye className="h-5 w-5" />
-          </Button>
-          <Button size="icon" variant="secondary" className="h-10 w-10 rounded-full" onClick={handleDownload}>
-            <Download className="h-5 w-5" />
-          </Button>
-          {isAdmin && onDelete && (
-            <Button 
-              size="icon" 
-              variant="destructive" 
-              className="h-10 w-10 rounded-full"
+      {/* Flickr-style Overlay */}
+      <div 
+        className="absolute inset-0 bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100 cursor-pointer"
+        onClick={onPreview}
+      >
+        <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between text-white bg-gradient-to-t from-black/80 to-transparent">
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-bold truncate pr-2">{photo.name}</span>
+            <span className="text-[10px] opacity-70">{(photo.size / 1024 / 1024).toFixed(2)} MB</span>
+          </div>
+          
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm"
+              onClick={handleDownload}
+              title="Download"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm"
               onClick={(e) => {
                 e.stopPropagation();
-                onDelete(photo.id);
+                onPreview();
               }}
+              title="View Large"
             >
-              <Trash2 className="h-5 w-5" />
+              <Maximize2 className="h-4 w-4" />
             </Button>
-          )}
+
+            {isAdmin && onDelete && (
+              <Button
+                variant="destructive"
+                size="icon"
+                className="h-8 w-8 rounded-full shadow-lg"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(photo.id);
+                }}
+                title="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
-        <p className="max-w-[80%] truncate text-xs font-medium text-white">
-          {photo.name}
-        </p>
       </div>
     </motion.div>
   );

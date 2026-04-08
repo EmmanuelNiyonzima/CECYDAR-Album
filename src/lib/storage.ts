@@ -1,171 +1,85 @@
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  where, 
-  deleteDoc, 
-  doc, 
-  orderBy,
-  onSnapshot,
-  getDocFromServer
-} from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage as firebaseStorage, auth } from './firebase';
 import { Album, Photo } from '@/types';
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
+// Simple mock storage using LocalStorage
+const STORAGE_KEY_ALBUMS = 'cecydar_albums_v2';
+const STORAGE_KEY_PHOTOS = 'cecydar_photos_v2';
 
 export const storage = {
   testConnection: async () => {
-    try {
-      await getDocFromServer(doc(db, 'test', 'connection'));
-    } catch (error) {
-      if(error instanceof Error && error.message.includes('the client is offline')) {
-        console.error("Please check your Firebase configuration. ");
-      }
-    }
+    // No-op for local storage
+    return true;
   },
 
   getAlbums: (callback: (albums: Album[]) => void) => {
-    const q = query(collection(db, 'albums'), orderBy('createdAt', 'desc'));
-    return onSnapshot(q, (snapshot) => {
-      const albums = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Album));
-      callback(albums);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'albums');
-    });
+    const data = localStorage.getItem(STORAGE_KEY_ALBUMS);
+    const albums = data ? JSON.parse(data) : [];
+    callback(albums);
+    // Return a dummy unsubscribe function
+    return () => {};
   },
   
   saveAlbum: async (album: Omit<Album, 'id' | 'createdAt'>): Promise<string> => {
-    try {
-      const docRef = await addDoc(collection(db, 'albums'), {
-        ...album,
-        createdAt: Date.now(),
-      });
-      return docRef.id;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'albums');
-      return '';
-    }
+    const data = localStorage.getItem(STORAGE_KEY_ALBUMS);
+    const albums = data ? JSON.parse(data) : [];
+    const id = Math.random().toString(36).substr(2, 9);
+    const newAlbum: Album = {
+      ...album,
+      id,
+      createdAt: Date.now(),
+    };
+    localStorage.setItem(STORAGE_KEY_ALBUMS, JSON.stringify([newAlbum, ...albums]));
+    return id;
   },
 
   deleteAlbum: async (id: string) => {
-    try {
-      // Delete album doc
-      await deleteDoc(doc(db, 'albums', id));
-      
-      // Find and delete associated photos
-      const q = query(collection(db, 'photos'), where('albumId', '==', id));
-      const snapshot = await getDocs(q);
-      
-      for (const photoDoc of snapshot.docs) {
-        const photo = photoDoc.data() as Photo;
-        // Delete from storage if it's a firebase storage URL
-        if (photo.url.includes('firebasestorage')) {
-          try {
-            const imageRef = ref(firebaseStorage, photo.url);
-            await deleteObject(imageRef);
-          } catch (e) {
-            console.error('Failed to delete image from storage', e);
-          }
-        }
-        await deleteDoc(doc(db, 'photos', photoDoc.id));
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `albums/${id}`);
-    }
+    const albumsData = localStorage.getItem(STORAGE_KEY_ALBUMS);
+    const albums = albumsData ? JSON.parse(albumsData) : [];
+    const filteredAlbums = albums.filter((a: Album) => a.id !== id);
+    localStorage.setItem(STORAGE_KEY_ALBUMS, JSON.stringify(filteredAlbums));
+
+    const photosData = localStorage.getItem(STORAGE_KEY_PHOTOS);
+    const photos = photosData ? JSON.parse(photosData) : [];
+    const filteredPhotos = photos.filter((p: Photo) => p.albumId !== id);
+    localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(filteredPhotos));
   },
 
   getPhotosByAlbum: (albumId: string, callback: (photos: Photo[]) => void) => {
-    const q = query(collection(db, 'photos'), where('albumId', '==', albumId), orderBy('createdAt', 'desc'));
-    return onSnapshot(q, (snapshot) => {
-      const photos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Photo));
-      callback(photos);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `photos?albumId=${albumId}`);
-    });
+    const data = localStorage.getItem(STORAGE_KEY_PHOTOS);
+    const photos = data ? JSON.parse(data) : [];
+    const filtered = photos.filter((p: Photo) => p.albumId === albumId);
+    callback(filtered);
+    return () => {};
   },
 
   uploadPhoto: async (albumId: string, file: File): Promise<void> => {
-    try {
-      const storagePath = `albums/${albumId}/${Date.now()}_${file.name}`;
-      const imageRef = ref(firebaseStorage, storagePath);
-      
-      await uploadBytes(imageRef, file);
-      const url = await getDownloadURL(imageRef);
-      
-      await addDoc(collection(db, 'photos'), {
-        albumId,
-        url,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        createdAt: Date.now(),
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'photos');
-    }
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const url = e.target?.result as string;
+        const data = localStorage.getItem(STORAGE_KEY_PHOTOS);
+        const photos = data ? JSON.parse(data) : [];
+        
+        const newPhoto: Photo = {
+          id: Math.random().toString(36).substr(2, 9),
+          albumId,
+          url,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          createdAt: Date.now(),
+        };
+        
+        localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify([newPhoto, ...photos]));
+        resolve();
+      };
+      reader.readAsDataURL(file);
+    });
   },
 
-  deletePhoto: async (id: string, url: string) => {
-    try {
-      if (url.includes('firebasestorage')) {
-        const imageRef = ref(firebaseStorage, url);
-        await deleteObject(imageRef);
-      }
-      await deleteDoc(doc(db, 'photos', id));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `photos/${id}`);
-    }
+  deletePhoto: async (id: string, _url: string) => {
+    const data = localStorage.getItem(STORAGE_KEY_PHOTOS);
+    const photos = data ? JSON.parse(data) : [];
+    const filtered = photos.filter((p: Photo) => p.id !== id);
+    localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(filtered));
   }
 };

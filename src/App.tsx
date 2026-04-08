@@ -6,8 +6,6 @@ import { AlbumDetail } from './components/AlbumDetail';
 import { UploadModal } from './components/UploadModal';
 import { ImagePreviewModal } from './components/ImagePreviewModal';
 import { storage } from './lib/storage';
-import { auth, loginWithGoogle, logout } from './lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 import { Album, Photo, User } from './types';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
@@ -70,24 +68,16 @@ function AppContent() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadType, setUploadType] = useState<'album' | 'photos'>('album');
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Auth listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        const newUser: User = {
-          email: firebaseUser.email,
-          isAdmin: firebaseUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
-        };
-        setUser(newUser);
-        if (view === 'login') setView('home');
-      } else {
-        setUser(null);
-      }
-      setIsAuthReady(true);
-    });
-    return () => unsubscribe();
-  }, [view]);
+    const savedUser = localStorage.getItem('cecydar_user_v2');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setIsAuthReady(true);
+  }, []);
 
   // Connection test
   useEffect(() => {
@@ -109,22 +99,22 @@ function AppContent() {
     return () => unsubscribe();
   }, [selectedAlbumId]);
 
-  const handleLogin = async () => {
-    try {
-      await loginWithGoogle();
-    } catch (error) {
-      toast.error('Login failed');
-      console.error(error);
-    }
+  const handleLogin = (email: string) => {
+    const newUser: User = {
+      email,
+      isAdmin: email.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
+    };
+    setUser(newUser);
+    localStorage.setItem('cecydar_user_v2', JSON.stringify(newUser));
+    setView('home');
+    toast.success(`Logged in as ${newUser.isAdmin ? 'Admin' : 'User'}`);
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      toast.info('Logged out successfully');
-    } catch (error) {
-      toast.error('Logout failed');
-    }
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('cecydar_user_v2');
+    setView('home');
+    toast.info('Logged out successfully');
   };
 
   const handleAlbumClick = (id: string) => {
@@ -183,13 +173,26 @@ function AppContent() {
 
   const selectedAlbum = albums.find(a => a.id === selectedAlbumId);
 
+  const filteredAlbums = albums.filter(album => 
+    album.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    album.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredPhotos = photos.filter(photo =>
+    photo.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar 
         user={user} 
-        onLogin={handleLogin} 
+        onLogin={() => setView('login')} 
         onLogout={handleLogout}
-        onGoHome={() => setView('home')}
+        onGoHome={() => {
+          setView('home');
+          setSearchQuery('');
+        }}
+        onSearch={setSearchQuery}
       />
 
       <main className="pb-20">
@@ -197,7 +200,7 @@ function AppContent() {
         
         {view === 'home' && (
           <AlbumGrid 
-            albums={albums} 
+            albums={filteredAlbums} 
             isAdmin={user?.isAdmin || false}
             onAlbumClick={handleAlbumClick}
             onAddAlbum={handleAddAlbum}
@@ -208,7 +211,7 @@ function AppContent() {
         {view === 'album' && selectedAlbum && (
           <AlbumDetail 
             album={selectedAlbum}
-            photos={photos}
+            photos={filteredPhotos}
             isAdmin={user?.isAdmin || false}
             isAuthenticated={!!user}
             onBack={() => setView('home')}

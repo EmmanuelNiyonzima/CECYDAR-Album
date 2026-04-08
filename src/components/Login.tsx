@@ -1,23 +1,29 @@
 import React, { useState } from 'react';
-import { LogIn, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Mail, Loader2, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'motion/react';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (email: string) => void;
 }
 
 export function Login({ onLogin }: LoginProps) {
+  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleGoogleLogin = async () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    
     setIsLoading(true);
-    try {
-      await onLogin();
-    } finally {
+    // Simulate login delay
+    setTimeout(() => {
+      onLogin(email);
       setIsLoading(false);
-    }
+    }, 800);
   };
 
   return (
@@ -37,32 +43,46 @@ export function Login({ onLogin }: LoginProps) {
             <div className="space-y-2">
               <CardTitle className="font-heading text-4xl font-bold tracking-tight">CECYDAR</CardTitle>
               <CardDescription className="text-base">
-                Join our community to view and download organization photos
+                Enter your email to access the CECYDAR photo platform
               </CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="pb-8">
-            <Button 
-              className="h-12 w-full text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98]" 
-              onClick={handleGoogleLogin} 
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <LogIn className="mr-2 h-5 w-5" />
-                  Continue with Google
-                </>
-              )}
-            </Button>
-          </CardContent>
+          <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-4 pb-8">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    className="pl-10"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <Button 
+                className="h-12 w-full text-base font-medium transition-all hover:scale-[1.02] active:scale-[0.98]" 
+                type="submit"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  'Continue'
+                )}
+              </Button>
+            </CardContent>
+          </form>
           <CardFooter className="flex flex-col gap-4 bg-muted/30 py-6 text-center">
             <p className="text-xs text-muted-foreground">
-              By continuing, you agree to our terms of service and privacy policy.
+              Admin: niyonzimaemmanuel85@gmail.com
             </p>
           </CardFooter>
         </Card>
