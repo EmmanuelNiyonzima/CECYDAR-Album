@@ -88,7 +88,7 @@ export function AlbumDetail({
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-12 w-1 bg-primary rounded-full" />
-              <h2 className="font-heading text-5xl font-extrabold tracking-tight">{album.title}</h2>
+              <h2 className="font-heading text-5xl font-extrabold tracking-tight text-primary">{album.title}</h2>
             </div>
             <div className="flex flex-wrap items-center gap-6 text-sm font-medium text-muted-foreground">
               <span className="flex items-center gap-2">

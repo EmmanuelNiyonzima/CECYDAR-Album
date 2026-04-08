@@ -22,7 +22,7 @@ export function AlbumGrid({ albums, isAdmin, onAlbumClick, onAddAlbum, onDeleteA
             <div className="h-1 w-6 bg-primary" />
             Collections
           </div>
-          <h2 className="font-heading text-5xl font-extrabold tracking-tight">Activities</h2>
+          <h2 className="font-heading text-5xl font-extrabold tracking-tight text-primary">Activities</h2>
           <p className="text-muted-foreground text-lg max-w-xl">
             Explore the life and mission of CECYDAR through our curated photo collections.
           </p>

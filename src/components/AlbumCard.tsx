@@ -41,7 +41,7 @@ export function AlbumCard({ album, isAdmin, onClick, onDelete }: AlbumCardProps)
         {/* Content Overlay */}
         <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
           <div className="space-y-1">
-            <h3 className="font-heading text-2xl font-bold leading-tight tracking-tight">{album.title}</h3>
+            <h3 className="font-heading text-2xl font-bold leading-tight tracking-tight text-primary">{album.title}</h3>
             <div className="flex items-center gap-3 text-xs font-medium text-white/70">
               <span className="flex items-center gap-1">
                 <ImageIcon className="h-3 w-3" />

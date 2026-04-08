@@ -82,7 +82,7 @@ export function Login({ onLogin }: LoginProps) {
           </form>
           <CardFooter className="flex flex-col gap-4 bg-muted/30 py-6 text-center">
             <p className="text-xs text-muted-foreground">
-              Admin: niyonzimaemmanuel85@gmail.com
+              Secure access for CECYDAR members
             </p>
           </CardFooter>
         </Card>
