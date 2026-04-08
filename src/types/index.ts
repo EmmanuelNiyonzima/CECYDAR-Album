@@ -4,6 +4,13 @@ export interface Album {
   description: string;
   date: string;
   createdAt: number;
+  // Customization
+  titleColor?: string;
+  titleSize?: string;
+  titleFont?: string;
+  // Gated content
+  passcode?: string;
+  isLocked?: boolean;
 }
 
 export interface Photo {
@@ -14,9 +21,12 @@ export interface Photo {
   size: number;
   type: string;
   createdAt: number;
+  tags?: string[];
 }
 
 export interface User {
   email: string | null;
   isAdmin: boolean;
+  isContributor?: boolean;
+  uid?: string;
 }

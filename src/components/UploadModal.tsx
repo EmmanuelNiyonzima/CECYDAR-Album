@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { X, Upload, Loader2, Image as ImageIcon, FolderPlus, Plus } from 'lucide-react';
+import { X, Upload, Loader2, Image as ImageIcon, FolderPlus, Plus, Palette, Lock, Type } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -19,6 +22,15 @@ export function UploadModal({ isOpen, onClose, type, onUpload }: UploadModalProp
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [files, setFiles] = useState<FileList | null>(null);
+  
+  // Customization
+  const [titleColor, setTitleColor] = useState('#000000');
+  const [titleSize, setTitleSize] = useState('text-5xl');
+  const [titleFont, setTitleFont] = useState('font-heading');
+  
+  // Gated content
+  const [isLocked, setIsLocked] = useState(false);
+  const [passcode, setPasscode] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +38,16 @@ export function UploadModal({ isOpen, onClose, type, onUpload }: UploadModalProp
     
     try {
       if (type === 'album') {
-        await onUpload({ title, description, date });
+        await onUpload({ 
+          title, 
+          description, 
+          date,
+          titleColor,
+          titleSize,
+          titleFont,
+          isLocked,
+          passcode: isLocked ? passcode : ''
+        });
       } else {
         if (files) {
           await onUpload(files);
@@ -37,6 +58,8 @@ export function UploadModal({ isOpen, onClose, type, onUpload }: UploadModalProp
       setTitle('');
       setDescription('');
       setFiles(null);
+      setIsLocked(false);
+      setPasscode('');
     } catch (error) {
       console.error('Upload failed:', error);
     } finally {
@@ -46,7 +69,7 @@ export function UploadModal({ isOpen, onClose, type, onUpload }: UploadModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md rounded-2xl border-none shadow-2xl">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -60,38 +83,103 @@ export function UploadModal({ isOpen, onClose, type, onUpload }: UploadModalProp
         
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
           {type === 'album' ? (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Album Title</Label>
-                <Input
-                  id="title"
-                  placeholder="e.g., Summer Camp 2024"
-                  className="h-11 border-2 focus-visible:ring-primary"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                />
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Album Title</Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g., Summer Camp 2024"
+                    className="h-11 border-2 focus-visible:ring-primary"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="What was this activity about?"
+                    className="min-h-[80px] border-2 focus-visible:ring-primary resize-none"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    className="h-11 border-2 focus-visible:ring-primary"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="description" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="What was this activity about?"
-                  className="min-h-[100px] border-2 focus-visible:ring-primary resize-none"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                  <Palette className="h-4 w-4" />
+                  Customization (Rich Text)
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Title Color</Label>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        type="color" 
+                        value={titleColor} 
+                        onChange={(e) => setTitleColor(e.target.value)}
+                        className="h-10 w-12 p-1 cursor-pointer"
+                      />
+                      <span className="text-xs font-mono">{titleColor}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Font Style</Label>
+                    <Select value={titleFont} onValueChange={setTitleFont}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="font-heading">Modern Sans</SelectItem>
+                        <SelectItem value="font-serif">Classic Serif</SelectItem>
+                        <SelectItem value="font-mono">Technical Mono</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="date" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Date</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  className="h-11 border-2 focus-visible:ring-primary"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                />
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                    <Lock className="h-4 w-4" />
+                    Gated Content
+                  </div>
+                  <Switch checked={isLocked} onCheckedChange={setIsLocked} />
+                </div>
+                {isLocked && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <Label htmlFor="passcode" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Passcode</Label>
+                    <Input
+                      id="passcode"
+                      type="text"
+                      placeholder="Enter a code to lock this album"
+                      className="h-11 border-2 focus-visible:ring-primary"
+                      value={passcode}
+                      onChange={(e) => setPasscode(e.target.value)}
+                      required={isLocked}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Users must enter this code to view photos in this album.</p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -123,7 +211,7 @@ export function UploadModal({ isOpen, onClose, type, onUpload }: UploadModalProp
             </div>
           )}
           
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 pt-4">
             <Button type="button" variant="ghost" onClick={onClose} className="font-bold">Cancel</Button>
             <Button 
               type="submit" 

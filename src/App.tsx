@@ -14,6 +14,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import { AlertCircle, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from './components/ConfirmDialog';
 
 const ADMIN_EMAIL = 'niyonzimaemmanuel85@gmail.com';
 
@@ -72,6 +73,21 @@ function AppContent() {
   const [uploadType, setUploadType] = useState<'album' | 'photos'>('album');
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    variant: 'default' | 'destructive';
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+    variant: 'default'
+  });
 
   // Auth listener
   useEffect(() => {
@@ -79,9 +95,12 @@ function AppContent() {
       if (firebaseUser) {
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         let isAdmin = firebaseUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        let isContributor = isAdmin;
         
         if (userDoc.exists()) {
-          isAdmin = userDoc.data().role === 'admin' || isAdmin;
+          const userData = userDoc.data();
+          isAdmin = userData.role === 'admin' || isAdmin;
+          isContributor = userData.role === 'contributor' || isAdmin;
         } else {
           // Initialize user in Firestore
           await setDoc(doc(db, 'users', firebaseUser.uid), {
@@ -92,7 +111,9 @@ function AppContent() {
 
         setUser({
           email: firebaseUser.email,
-          isAdmin: isAdmin
+          isAdmin: isAdmin,
+          isContributor: isContributor,
+          uid: firebaseUser.uid
         });
       } else {
         setUser(null);
@@ -172,18 +193,35 @@ function AppContent() {
   };
 
   const handleDeleteAlbum = async (id: string) => {
-    if (confirm('Are you sure you want to delete this album and all its photos?')) {
-      await storage.deleteAlbum(id);
-      toast.success('Album deleted');
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: "Delete Album?",
+      description: "This will permanently delete the album and all photos inside it. This action cannot be undone.",
+      variant: 'destructive',
+      onConfirm: async () => {
+        await storage.deleteAlbum(id);
+        toast.success('Album deleted');
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        if (selectedAlbumId === id) setView('home');
+      }
+    });
   };
 
   const handleDeletePhoto = async (id: string) => {
     const photoToDelete = photos.find(p => p.id === id);
-    if (photoToDelete && confirm('Delete this photo?')) {
-      await storage.deletePhoto(id, photoToDelete.url);
-      toast.success('Photo deleted');
-    }
+    if (!photoToDelete) return;
+
+    setConfirmDialog({
+      isOpen: true,
+      title: "Delete Photo?",
+      description: "Are you sure you want to delete this photo?",
+      variant: 'destructive',
+      onConfirm: async () => {
+        await storage.deletePhoto(id, photoToDelete.url);
+        toast.success('Photo deleted');
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const handleUpload = async (data: any) => {
@@ -266,6 +304,7 @@ function AppContent() {
             album={selectedAlbum}
             photos={filteredPhotos}
             isAdmin={user?.isAdmin || false}
+            isContributor={user?.isContributor || false}
             isAuthenticated={!!user}
             onBack={() => setView('home')}
             onUploadPhotos={handleUploadPhotos}
@@ -279,6 +318,16 @@ function AppContent() {
           />
         )}
       </main>
+
+      <ConfirmDialog 
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant}
+        confirmText="Delete"
+      />
 
       <UploadModal 
         isOpen={isUploadModalOpen}

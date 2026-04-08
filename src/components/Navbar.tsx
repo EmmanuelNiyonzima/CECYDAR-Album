@@ -53,16 +53,19 @@ export function Navbar({ user, onLogin, onLogout, onGoHome, onSearch }: NavbarPr
 
         {/* Search Bar */}
         <div className="flex-1 max-w-md hidden sm:block">
-          <form onSubmit={handleSearch} className="relative">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Photos, people, or groups"
+              placeholder="Search albums or photos..."
               className="h-9 w-full bg-secondary/50 pl-10 border-none focus-visible:ring-1 focus-visible:ring-primary/50"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                onSearch?.(e.target.value);
+              }}
             />
-          </form>
+          </div>
         </div>
 
         {/* User Actions */}
@@ -72,7 +75,7 @@ export function Navbar({ user, onLogin, onLogout, onGoHome, onSearch }: NavbarPr
               <div className="hidden flex-col items-end sm:flex">
                 <span className="text-xs font-bold text-primary flex items-center gap-1">
                   {user.isAdmin && <Shield className="h-3 w-3" />}
-                  {user.isAdmin ? 'ADMIN' : 'MEMBER'}
+                  {user.isAdmin ? 'ADMIN' : user.isContributor ? 'CONTRIBUTOR' : 'MEMBER'}
                 </span>
                 <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{user.email}</span>
               </div>

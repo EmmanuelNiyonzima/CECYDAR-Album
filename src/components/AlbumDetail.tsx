@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowLeft, Upload, Download, Trash2, ImageIcon, Calendar, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Upload, Download, Trash2, ImageIcon, Calendar, Plus, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ImageCard } from './ImageCard';
 import { Album, Photo } from '@/types';
@@ -7,11 +7,13 @@ import { storage } from '@/lib/storage';
 import { motion } from 'motion/react';
 import JSZip from 'jszip';
 import Masonry from 'react-masonry-css';
+import { PasscodeLock } from './PasscodeLock';
 
 interface AlbumDetailProps {
   album: Album;
   photos: Photo[];
   isAdmin: boolean;
+  isContributor: boolean;
   isAuthenticated: boolean;
   onBack: () => void;
   onUploadPhotos: () => void;
@@ -25,6 +27,7 @@ export function AlbumDetail({
   album, 
   photos, 
   isAdmin, 
+  isContributor,
   isAuthenticated,
   onBack, 
   onUploadPhotos, 
@@ -33,7 +36,13 @@ export function AlbumDetail({
   onPreviewPhoto,
   onAuthRequired
 }: AlbumDetailProps) {
-  
+  const [isUnlocked, setIsUnlocked] = useState(!album.isLocked || isAdmin);
+
+  // Re-check lock status if album changes
+  useEffect(() => {
+    setIsUnlocked(!album.isLocked || isAdmin);
+  }, [album.id, album.isLocked, isAdmin]);
+
   const handleDownloadAll = async () => {
     if (!isAuthenticated) {
       onAuthRequired();
@@ -69,6 +78,27 @@ export function AlbumDetail({
     window.URL.revokeObjectURL(url);
   };
 
+  if (!isUnlocked && album.passcode) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={onBack} 
+          className="mb-6 -ml-2 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Albums
+        </Button>
+        <PasscodeLock 
+          title={album.title} 
+          correctPasscode={album.passcode} 
+          onUnlock={() => setIsUnlocked(true)} 
+        />
+      </div>
+    );
+  }
+
   const breakpointColumnsObj = {
     default: 5,
     1400: 4,
@@ -95,7 +125,15 @@ export function AlbumDetail({
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-12 w-1 bg-primary rounded-full" />
-              <h2 className="font-heading text-5xl font-extrabold tracking-tight text-primary">{album.title}</h2>
+              <h2 
+                className={`font-heading text-5xl font-extrabold tracking-tight ${album.titleFont || ''}`}
+                style={{ 
+                  color: album.titleColor || 'inherit',
+                }}
+              >
+                {album.title}
+                {album.isLocked && <Lock className="ml-3 inline-block h-6 w-6 text-muted-foreground/50" />}
+              </h2>
             </div>
             <div className="flex flex-wrap items-center gap-6 text-sm font-medium text-muted-foreground">
               <span className="flex items-center gap-2">
@@ -121,7 +159,7 @@ export function AlbumDetail({
               <Download className="mr-2 h-4 w-4" />
               Download All
             </Button>
-            {isAdmin && (
+            {isContributor && (
               <div className="flex items-center gap-2">
                 <Button 
                   onClick={onUploadPhotos}
@@ -130,15 +168,17 @@ export function AlbumDetail({
                   <Plus className="mr-2 h-4 w-4" />
                   Upload Photos
                 </Button>
-                <Button 
-                  variant="destructive"
-                  size="icon"
-                  className="h-10 w-10 rounded-lg shadow-lg shadow-destructive/20"
-                  onClick={onDeleteAlbum}
-                  title="Delete Album"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </Button>
+                {isAdmin && (
+                  <Button 
+                    variant="destructive"
+                    size="icon"
+                    className="h-10 w-10 rounded-lg shadow-lg shadow-destructive/20"
+                    onClick={onDeleteAlbum}
+                    title="Delete Album"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -172,7 +212,7 @@ export function AlbumDetail({
           </div>
           <h3 className="mb-2 text-xl font-bold">No photos yet</h3>
           <p className="mb-6 text-muted-foreground">This album is waiting for its first memories.</p>
-          {isAdmin && (
+          {isContributor && (
             <Button onClick={onUploadPhotos} className="font-bold">
               <Plus className="mr-2 h-4 w-4" />
               Upload first photo

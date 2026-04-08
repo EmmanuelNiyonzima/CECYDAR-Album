@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Image as ImageIcon, Trash2, FolderOpen } from 'lucide-react';
+import { Calendar, Image as ImageIcon, Trash2, FolderOpen, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,13 @@ export function AlbumCard({ album, isAdmin, onClick, onDelete }: AlbumCardProps)
         {/* Content Overlay */}
         <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
           <div className="space-y-1">
-            <h3 className="font-heading text-2xl font-bold leading-tight tracking-tight text-primary">{album.title}</h3>
+            <h3 
+              className={`font-heading text-2xl font-bold leading-tight tracking-tight ${album.titleFont || ''}`}
+              style={{ color: album.titleColor || 'white' }}
+            >
+              {album.title}
+              {album.isLocked && <Lock className="ml-2 inline-block h-4 w-4 opacity-50" />}
+            </h3>
             <div className="flex items-center gap-3 text-xs font-medium text-white/70">
               <span className="flex items-center gap-1">
                 <ImageIcon className="h-3 w-3" />
