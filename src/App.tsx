@@ -63,7 +63,7 @@ class ErrorBoundary extends React.Component<any, any> {
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [view, setView] = useState<'home' | 'album' | 'login'>('login');
+  const [view, setView] = useState<'home' | 'album' | 'login'>('home');
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -80,15 +80,14 @@ function AppContent() {
           isAdmin: firebaseUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
         };
         setUser(newUser);
-        setView('home');
+        if (view === 'login') setView('home');
       } else {
         setUser(null);
-        setView('login');
       }
       setIsAuthReady(true);
     });
     return () => unsubscribe();
-  }, []);
+  }, [view]);
 
   // Connection test
   useEffect(() => {
@@ -99,17 +98,16 @@ function AppContent() {
 
   // Real-time albums listener
   useEffect(() => {
-    if (!isAuthReady || !user) return;
     const unsubscribe = storage.getAlbums((data) => setAlbums(data));
     return () => unsubscribe();
-  }, [isAuthReady, user]);
+  }, []);
 
   // Real-time photos listener
   useEffect(() => {
-    if (!isAuthReady || !user || !selectedAlbumId) return;
+    if (!selectedAlbumId) return;
     const unsubscribe = storage.getPhotosByAlbum(selectedAlbumId, (data) => setPhotos(data));
     return () => unsubscribe();
-  }, [isAuthReady, user, selectedAlbumId]);
+  }, [selectedAlbumId]);
 
   const handleLogin = async () => {
     try {
@@ -212,10 +210,15 @@ function AppContent() {
             album={selectedAlbum}
             photos={photos}
             isAdmin={user?.isAdmin || false}
+            isAuthenticated={!!user}
             onBack={() => setView('home')}
             onUploadPhotos={handleUploadPhotos}
             onDeletePhoto={handleDeletePhoto}
             onPreviewPhoto={(p) => setPreviewPhoto(p)}
+            onAuthRequired={() => {
+              toast.error('Please login to download photos');
+              setView('login');
+            }}
           />
         )}
       </main>

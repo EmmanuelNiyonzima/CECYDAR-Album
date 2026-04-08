@@ -16,14 +16,15 @@ interface AlbumGridProps {
 export function AlbumGrid({ albums, isAdmin, onAlbumClick, onAddAlbum, onDeleteAlbum }: AlbumGridProps) {
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h2 className="font-heading text-4xl font-bold tracking-tight">Activities & Albums</h2>
+      <div className="mb-12 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+        <div className="space-y-1">
+          <div className="h-1 w-12 bg-primary" />
+          <h2 className="font-heading text-5xl font-bold tracking-tight">Activities</h2>
           <p className="text-muted-foreground">Browse through CECYDAR's history and events.</p>
         </div>
         {isAdmin && (
-          <Button onClick={onAddAlbum} className="gap-2">
-            <Plus className="h-4 w-4" />
+          <Button onClick={onAddAlbum} className="gap-2 shadow-lg transition-transform hover:scale-105 active:scale-95">
+            <Plus className="h-5 w-5" />
             New Album
           </Button>
         )}

@@ -7,13 +7,19 @@ import { Photo } from '@/types';
 interface ImageCardProps {
   photo: Photo;
   isAdmin: boolean;
+  isAuthenticated: boolean;
   onPreview: () => void;
   onDelete?: (id: string) => void;
+  onAuthRequired: () => void;
 }
 
-export function ImageCard({ photo, isAdmin, onPreview, onDelete }: ImageCardProps) {
+export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete, onAuthRequired }: ImageCardProps) {
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isAuthenticated) {
+      onAuthRequired();
+      return;
+    }
     try {
       const response = await fetch(photo.url);
       const blob = await response.blob();

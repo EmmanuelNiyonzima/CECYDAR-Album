@@ -26,6 +26,7 @@ export function AlbumCard({ album, isAdmin, onClick, onDelete }: AlbumCardProps)
         className="group relative h-full cursor-pointer overflow-hidden border-none bg-secondary/50 shadow-none transition-all hover:bg-secondary hover:shadow-xl"
         onClick={onClick}
       >
+        <div className="absolute top-0 left-0 h-1 w-0 bg-primary transition-all duration-500 group-hover:w-full" />
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-background text-primary shadow-sm">

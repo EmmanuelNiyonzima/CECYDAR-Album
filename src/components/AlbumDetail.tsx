@@ -10,23 +10,31 @@ interface AlbumDetailProps {
   album: Album;
   photos: Photo[];
   isAdmin: boolean;
+  isAuthenticated: boolean;
   onBack: () => void;
   onUploadPhotos: () => void;
   onDeletePhoto: (id: string) => void;
   onPreviewPhoto: (photo: Photo) => void;
+  onAuthRequired: () => void;
 }
 
 export function AlbumDetail({ 
   album, 
   photos, 
   isAdmin, 
+  isAuthenticated,
   onBack, 
   onUploadPhotos, 
   onDeletePhoto,
-  onPreviewPhoto
+  onPreviewPhoto,
+  onAuthRequired
 }: AlbumDetailProps) {
   
   const handleDownloadAll = async () => {
+    if (!isAuthenticated) {
+      onAuthRequired();
+      return;
+    }
     const zip = new JSZip();
     const folder = zip.folder(album.title);
     
@@ -55,19 +63,27 @@ export function AlbumDetail({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Button variant="ghost" onClick={onBack} className="mb-6 gap-2">
-        <ArrowLeft className="h-4 w-4" />
-        Back to Albums
-      </Button>
 
-      <div className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div className="max-w-2xl">
-          <h2 className="font-heading text-5xl font-extrabold tracking-tight">{album.title}</h2>
-          <p className="mt-2 text-lg text-muted-foreground">{album.description}</p>
-          <div className="mt-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
-            <span>{photos.length} Photos</span>
-            <span>•</span>
-            <span>{new Date(album.date).toLocaleDateString()}</span>
+      <div className="mb-12 flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
+        <div className="space-y-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onBack} 
+            className="-ml-2 gap-2 text-muted-foreground hover:text-primary"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Albums
+          </Button>
+          <div className="space-y-1">
+            <div className="h-1 w-12 bg-primary" />
+            <h2 className="font-heading text-5xl font-bold tracking-tight">{album.title}</h2>
+            <p className="max-w-2xl text-lg text-muted-foreground">{album.description}</p>
+            <div className="mt-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
+              <span>{photos.length} Photos</span>
+              <span>•</span>
+              <span>{new Date(album.date).toLocaleDateString()}</span>
+            </div>
           </div>
         </div>
         
@@ -79,7 +95,7 @@ export function AlbumDetail({
             </Button>
           )}
           {isAdmin && (
-            <Button onClick={onUploadPhotos} className="gap-2">
+            <Button onClick={onUploadPhotos} className="gap-2 shadow-lg transition-transform hover:scale-105 active:scale-95">
               <Upload className="h-4 w-4" />
               Upload Photos
             </Button>
@@ -104,8 +120,10 @@ export function AlbumDetail({
               <ImageCard
                 photo={photo}
                 isAdmin={isAdmin}
+                isAuthenticated={isAuthenticated}
                 onPreview={() => onPreviewPhoto(photo)}
                 onDelete={onDeletePhoto}
+                onAuthRequired={onAuthRequired}
               />
             </div>
           ))}

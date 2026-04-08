@@ -18,7 +18,7 @@ export function Navbar({ user, onLogin, onLogout, onGoHome }: NavbarProps) {
           className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
           onClick={onGoHome}
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <ImageIcon className="h-6 w-6" />
           </div>
           <div>

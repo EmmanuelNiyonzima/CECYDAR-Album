@@ -56,14 +56,14 @@ service cloud.firestore {
     // ===============================================================
 
     match /albums/{albumId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAdmin() && isValidAlbum(request.resource.data);
       allow update: if isAdmin() && isValidAlbum(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /photos/{photoId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAdmin() && isValidPhoto(request.resource.data);
       allow update: if isAdmin() && isValidPhoto(request.resource.data);
       allow delete: if isAdmin();
