@@ -16,6 +16,7 @@ interface AlbumDetailProps {
   onBack: () => void;
   onUploadPhotos: () => void;
   onDeletePhoto: (id: string) => void;
+  onDeleteAlbum: () => void;
   onPreviewPhoto: (photo: Photo, url: string) => void;
   onAuthRequired: () => void;
 }
@@ -28,6 +29,7 @@ export function AlbumDetail({
   onBack, 
   onUploadPhotos, 
   onDeletePhoto,
+  onDeleteAlbum,
   onPreviewPhoto,
   onAuthRequired
 }: AlbumDetailProps) {
@@ -120,13 +122,24 @@ export function AlbumDetail({
               Download All
             </Button>
             {isAdmin && (
-              <Button 
-                onClick={onUploadPhotos}
-                className="font-bold px-6 shadow-lg shadow-primary/20"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Upload Photos
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  onClick={onUploadPhotos}
+                  className="font-bold px-6 shadow-lg shadow-primary/20"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Upload Photos
+                </Button>
+                <Button 
+                  variant="destructive"
+                  size="icon"
+                  className="h-10 w-10 rounded-lg shadow-lg shadow-destructive/20"
+                  onClick={onDeleteAlbum}
+                  title="Delete Album"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </Button>
+              </div>
             )}
           </div>
         </div>

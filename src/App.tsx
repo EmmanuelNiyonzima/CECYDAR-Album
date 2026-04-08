@@ -128,9 +128,21 @@ function AppContent() {
       await signInWithPopup(auth, googleProvider);
       setView('home');
       toast.success('Logged in successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error);
-      toast.error('Login failed. Please try again.');
+      let message = 'Login failed. Please try again.';
+      
+      if (error.code === 'auth/unauthorized-domain') {
+        message = 'Domain not authorized. Please check Firebase Console.';
+      } else if (error.code === 'auth/popup-blocked') {
+        message = 'Popup blocked by browser. Please allow popups.';
+      } else if (error.code === 'auth/operation-not-allowed') {
+        message = 'Google Login is not enabled in Firebase Console.';
+      }
+      
+      toast.error(message, {
+        description: error.message
+      });
     }
   };
 
@@ -186,14 +198,17 @@ function AppContent() {
       const uploadToast = toast.loading(`Uploading 0/${total} photos...`);
       
       try {
-        // Sequential upload to avoid memory issues with thousands of images
-        for (const file of files) {
+        // Parallel upload for speed
+        await Promise.all(files.map(async (file) => {
           await storage.uploadPhoto(selectedAlbumId!, file);
           completed++;
           toast.loading(`Uploading ${completed}/${total} photos...`, { id: uploadToast });
-        }
+        }));
         
-        toast.success(`Successfully uploaded ${total} images!`, { id: uploadToast });
+        toast.success(`Successfully uploaded ${total} images!`, { 
+          id: uploadToast,
+          description: "All photos are now available in the album."
+        });
       } catch (error) {
         console.error('Upload failed:', error);
         toast.error(`Upload failed after ${completed} images.`, { id: uploadToast });
@@ -255,6 +270,7 @@ function AppContent() {
             onBack={() => setView('home')}
             onUploadPhotos={handleUploadPhotos}
             onDeletePhoto={handleDeletePhoto}
+            onDeleteAlbum={() => handleDeleteAlbum(selectedAlbumId!)}
             onPreviewPhoto={(p, url) => setPreviewPhoto({ ...p, url })}
             onAuthRequired={() => {
               toast.error('Please login to download photos');
