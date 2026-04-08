@@ -55,10 +55,9 @@ export function AlbumDetail({
 
     for (const photo of photos) {
       try {
-        const data = await storage.getPhotoData(photo.id);
-        if (data) {
+        if (photo.url) {
           // Convert data URL to blob
-          const response = await fetch(data);
+          const response = await fetch(photo.url);
           const blob = await response.blob();
           folder.file(photo.name, blob);
         }

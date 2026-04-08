@@ -14,24 +14,7 @@ interface ImagePreviewModalProps {
 }
 
 export function ImagePreviewModal({ photo, isOpen, onClose, onNext, onPrev }: ImagePreviewModalProps) {
-  const [imageUrl, setImageUrl] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!photo) return;
-    
-    let isMounted = true;
-    setIsLoading(true);
-    
-    storage.getPhotoData(photo.id).then((data) => {
-      if (isMounted && data) {
-        setImageUrl(data);
-        setIsLoading(false);
-      }
-    });
-    
-    return () => { isMounted = false; };
-  }, [photo?.id]);
+  const isLoading = !photo?.url;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -54,10 +37,10 @@ export function ImagePreviewModal({ photo, isOpen, onClose, onNext, onPrev }: Im
   if (!photo) return null;
 
   const handleDownload = async () => {
-    if (!imageUrl) return;
+    if (!photo.url) return;
     try {
       const link = document.createElement('a');
-      link.href = imageUrl;
+      link.href = photo.url;
       link.download = photo.name;
       document.body.appendChild(link);
       link.click();
@@ -130,7 +113,7 @@ export function ImagePreviewModal({ photo, isOpen, onClose, onNext, onPrev }: Im
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                src={imageUrl}
+                src={photo.url}
                 alt={photo.name}
                 className="max-h-full max-w-full object-contain shadow-2xl"
                 referrerPolicy="no-referrer"

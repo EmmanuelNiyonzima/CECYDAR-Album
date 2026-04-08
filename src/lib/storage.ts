@@ -99,19 +99,6 @@ export const storage = {
     });
   },
 
-  getPhotoData: async (id: string): Promise<string | undefined> => {
-    try {
-      const docSnap = await getDoc(doc(db, 'photos', id));
-      if (docSnap.exists()) {
-        return docSnap.data().url;
-      }
-      return undefined;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `photos/${id}`);
-      return undefined;
-    }
-  },
-
   uploadPhoto: async (albumId: string, file: File): Promise<void> => {
     try {
       // 1. Create a placeholder in Firestore to get an ID

@@ -15,19 +15,7 @@ interface ImageCardProps {
 }
 
 export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete, onAuthRequired }: ImageCardProps) {
-  const [imageUrl, setImageUrl] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    storage.getPhotoData(photo.id).then((data) => {
-      if (isMounted && data) {
-        setImageUrl(data);
-        setIsLoading(false);
-      }
-    });
-    return () => { isMounted = false; };
-  }, [photo.id]);
+  const isLoading = !photo.url;
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -35,11 +23,11 @@ export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete
       onAuthRequired();
       return;
     }
-    if (!imageUrl) return;
+    if (!photo.url) return;
     
     try {
       const link = document.createElement('a');
-      link.href = imageUrl;
+      link.href = photo.url;
       link.download = photo.name;
       document.body.appendChild(link);
       link.click();
@@ -62,7 +50,7 @@ export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete
         </div>
       ) : (
         <img
-          src={imageUrl}
+          src={photo.url}
           alt={photo.name}
           className="w-full object-cover transition-transform duration-700 group-hover:scale-105"
           referrerPolicy="no-referrer"
@@ -73,7 +61,7 @@ export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete
       {/* Flickr-style Overlay */}
       <div 
         className="absolute inset-0 bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100 cursor-pointer"
-        onClick={() => !isLoading && onPreview(imageUrl)}
+        onClick={() => !isLoading && onPreview(photo.url)}
       >
         <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between text-white bg-gradient-to-t from-black/80 to-transparent">
           <div className="flex flex-col min-w-0">
@@ -99,7 +87,7 @@ export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete
               className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm"
               onClick={(e) => {
                 e.stopPropagation();
-                if (!isLoading) onPreview(imageUrl);
+                if (!isLoading) onPreview(photo.url);
               }}
               disabled={isLoading}
               title="View Large"
