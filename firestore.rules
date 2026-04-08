@@ -53,7 +53,7 @@ service cloud.firestore {
     function isValidPhoto(data) {
       return data.keys().hasAll(['albumId', 'url', 'name', 'createdAt']) &&
              data.albumId is string &&
-             data.url is string && data.url.size() < 2000000 && // Base64 can be large
+             data.url is string &&
              data.name is string && data.name.size() < 255 &&
              data.createdAt is number;
     }
