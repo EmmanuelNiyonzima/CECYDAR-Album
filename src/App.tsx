@@ -236,20 +236,30 @@ function AppContent() {
       const uploadToast = toast.loading(`Uploading 0/${total} photos...`);
       
       try {
-        // Parallel upload for speed
-        await Promise.all(files.map(async (file) => {
+        // Use allSettled to ensure we get results for all files even if some fail
+        const results = await Promise.allSettled(files.map(async (file) => {
           await storage.uploadPhoto(selectedAlbumId!, file);
           completed++;
           toast.loading(`Uploading ${completed}/${total} photos...`, { id: uploadToast });
         }));
         
-        toast.success(`Successfully uploaded ${total} images!`, { 
-          id: uploadToast,
-          description: "All photos are now available in the album."
-        });
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+
+        if (failed === 0) {
+          toast.success(`Successfully uploaded ${total} images!`, { 
+            id: uploadToast,
+            description: "All photos are now available in the album."
+          });
+        } else {
+          toast.error(`Upload completed with issues`, {
+            id: uploadToast,
+            description: `Successfully uploaded ${successful} photos. ${failed} photos failed to upload.`
+          });
+        }
       } catch (error) {
-        console.error('Upload failed:', error);
-        toast.error(`Upload failed after ${completed} images.`, { id: uploadToast });
+        console.error('Upload process error:', error);
+        toast.error('An unexpected error occurred during upload', { id: uploadToast });
       }
     }
   };

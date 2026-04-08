@@ -101,25 +101,27 @@ export const storage = {
 
   uploadPhoto: async (albumId: string, file: File): Promise<void> => {
     try {
-      // 1. Create a placeholder in Firestore to get an ID
-      const docRef = await addDoc(collection(db, 'photos'), {
-        albumId,
-        url: '', // Will update after storage upload
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        createdAt: Date.now(),
-      });
+      // 1. Pre-generate a Firestore document reference to get a unique ID
+      const photoDocRef = doc(collection(db, 'photos'));
+      const photoId = photoDocRef.id;
 
-      // 2. Upload to Firebase Storage using the Firestore ID as filename
-      const storageRef = ref(storage_bucket, `photos/${docRef.id}`);
+      // 2. Upload to Firebase Storage using this ID as the filename
+      const storageRef = ref(storage_bucket, `photos/${photoId}`);
       await uploadBytes(storageRef, file);
 
       // 3. Get the download URL
       const downloadUrl = await getDownloadURL(storageRef);
 
-      // 4. Update Firestore with the real URL
-      await setDoc(doc(db, 'photos', docRef.id), { url: downloadUrl }, { merge: true });
+      // 4. Create the Firestore document with the URL
+      // We use setDoc because we already have the doc reference with the ID
+      await setDoc(photoDocRef, {
+        albumId,
+        url: downloadUrl,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        createdAt: Date.now(),
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'photos');
       throw error;
