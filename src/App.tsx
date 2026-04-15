@@ -38,20 +38,39 @@ class ErrorBoundary extends React.Component<any, any> {
   render() {
     if (this.state.hasError) {
       let message = "Something went wrong.";
-      try {
-        const errObj = JSON.parse(this.state.error.message);
-        if (errObj.error) message = `Permission Denied: ${errObj.operationType} on ${errObj.path}`;
-      } catch (e) {
-        message = this.state.error.message || message;
+      let details = "";
+      
+      if (this.state.error) {
+        if (typeof this.state.error === 'string') {
+          message = this.state.error;
+        } else if (this.state.error.message) {
+          details = this.state.error.message;
+          try {
+            const errObj = JSON.parse(this.state.error.message);
+            if (errObj.error) {
+              message = `Permission Denied: ${errObj.operationType} on ${errObj.path}`;
+              details = errObj.error;
+            }
+          } catch (e) {
+            message = this.state.error.message;
+          }
+        }
       }
 
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center p-4 text-center">
-          <AlertCircle className="mb-4 h-12 w-12 text-destructive" />
-          <h1 className="mb-2 text-2xl font-bold">Application Error</h1>
-          <p className="mb-6 max-w-md text-muted-foreground">{message}</p>
-          <Button onClick={() => window.location.reload()} className="gap-2">
-            <RefreshCcw className="h-4 w-4" />
+        <div className="flex min-h-screen flex-col items-center justify-center p-4 text-center bg-background text-foreground">
+          <div className="mb-6 rounded-full bg-destructive/10 p-4">
+            <AlertCircle className="h-12 w-12 text-destructive" />
+          </div>
+          <h1 className="mb-2 text-3xl font-extrabold tracking-tight">Application Error</h1>
+          <p className="mb-4 max-w-md text-lg text-muted-foreground">{message}</p>
+          {details && details !== message && (
+            <pre className="mb-8 max-w-lg overflow-auto rounded-lg bg-muted p-4 text-left text-xs text-muted-foreground">
+              {details}
+            </pre>
+          )}
+          <Button onClick={() => window.location.reload()} className="gap-2 font-bold px-8 h-12">
+            <RefreshCcw className="h-5 w-5" />
             Reload Application
           </Button>
         </div>

@@ -88,11 +88,12 @@ export const storage = {
   getPhotosByAlbum: (albumId: string, callback: (photos: Photo[]) => void) => {
     const q = query(
       collection(db, 'photos'), 
-      where('albumId', '==', albumId),
-      orderBy('createdAt', 'desc')
+      where('albumId', '==', albumId)
     );
     return onSnapshot(q, (snapshot) => {
       const photos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Photo));
+      // Sort client-side to avoid needing a composite index in Firestore
+      photos.sort((a, b) => b.createdAt - a.createdAt);
       callback(photos);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, `photos?albumId=${albumId}`);

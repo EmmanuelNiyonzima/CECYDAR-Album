@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Download, Trash2, Maximize2, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,13 @@ interface ImageCardProps {
 export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete, onAuthRequired }: ImageCardProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    if (imgRef.current?.complete) {
+      setIsLoaded(true);
+    }
+  }, []);
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -39,12 +46,11 @@ export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete
 
   return (
     <motion.div
-      layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="group relative mb-4 break-inside-avoid overflow-hidden rounded-sm bg-secondary/10 min-h-[100px]"
+      className="group relative mb-4 break-inside-avoid overflow-hidden rounded-sm bg-secondary/10"
     >
-      {/* Loading State */}
+      {/* Loading State Overlay */}
       {!isLoaded && !hasError && (
         <div className="aspect-[3/4] flex flex-col items-center justify-center bg-secondary/5 gap-2">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
@@ -52,21 +58,34 @@ export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete
         </div>
       )}
 
-      {/* Error State */}
+      {/* Error State Overlay */}
       {hasError && (
         <div className="aspect-[3/4] flex flex-col items-center justify-center bg-destructive/5 gap-2 p-4 text-center">
           <AlertCircle className="h-6 w-6 text-destructive/50" />
-          <span className="text-[10px] text-destructive/50 uppercase tracking-widest font-bold">Failed to load image</span>
+          <span className="text-[10px] text-destructive/50 uppercase tracking-widest font-bold">Failed to load</span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-[10px] h-7"
+            onClick={() => { setHasError(false); setIsLoaded(false); }}
+          >
+            Retry
+          </Button>
         </div>
       )}
 
       <img
+        ref={imgRef}
         src={photo.url}
         alt={photo.name}
-        className={`w-full object-cover transition-all duration-700 group-hover:scale-105 ${isLoaded ? 'opacity-100' : 'opacity-0 absolute inset-0'}`}
+        className={`w-full object-cover transition-all duration-700 group-hover:scale-105 ${isLoaded ? 'opacity-100 block' : 'opacity-0 h-0 w-0'}`}
         referrerPolicy="no-referrer"
-        onLoad={() => setIsLoaded(true)}
-        onError={() => setHasError(true)}
+        onLoad={() => {
+          setIsLoaded(true);
+        }}
+        onError={() => {
+          setHasError(true);
+        }}
       />
       
       {/* Flickr-style Overlay */}

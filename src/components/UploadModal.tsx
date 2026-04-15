@@ -191,7 +191,7 @@ export function UploadModal({ isOpen, onClose, type, onUpload }: UploadModalProp
                 <Label htmlFor="photos" className="cursor-pointer text-lg font-bold text-foreground hover:text-primary transition-colors">
                   Click to select photos
                 </Label>
-                <p className="mt-2 text-sm text-muted-foreground">PNG, JPG or WEBP (max. 10MB each)</p>
+                <p className="mt-2 text-sm text-muted-foreground">PNG, JPG or WEBP (max. 50MB each)</p>
                 <Input
                   id="photos"
                   type="file"
