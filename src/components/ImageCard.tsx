@@ -19,10 +19,14 @@ export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
+    if (!photo.url || !photo.url.startsWith('http')) {
+      console.error(`Invalid photo URL for ${photo.name}:`, photo.url);
+      setHasError(true);
+    }
     if (imgRef.current?.complete) {
       setIsLoaded(true);
     }
-  }, []);
+  }, [photo.url, photo.name]);
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -67,7 +71,11 @@ export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete
             variant="ghost" 
             size="sm" 
             className="text-[10px] h-7"
-            onClick={() => { setHasError(false); setIsLoaded(false); }}
+            onClick={() => { 
+              console.log(`Retrying load for: ${photo.url}`);
+              setHasError(false); 
+              setIsLoaded(false); 
+            }}
           >
             Retry
           </Button>
@@ -78,12 +86,14 @@ export function ImageCard({ photo, isAdmin, isAuthenticated, onPreview, onDelete
         ref={imgRef}
         src={photo.url}
         alt={photo.name}
-        className={`w-full object-cover transition-all duration-700 group-hover:scale-105 ${isLoaded ? 'opacity-100 block' : 'opacity-0 h-0 w-0'}`}
+        className={`w-full object-cover transition-all duration-700 group-hover:scale-105 ${isLoaded ? 'opacity-100' : 'opacity-0 absolute inset-0'}`}
         referrerPolicy="no-referrer"
         onLoad={() => {
+          console.log(`Image loaded successfully: ${photo.name}`);
           setIsLoaded(true);
         }}
-        onError={() => {
+        onError={(e) => {
+          console.error(`Image failed to load: ${photo.name}`, e);
           setHasError(true);
         }}
       />

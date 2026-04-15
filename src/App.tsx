@@ -159,7 +159,11 @@ function AppContent() {
   // Real-time photos listener
   useEffect(() => {
     if (!selectedAlbumId) return;
-    const unsubscribe = storage.getPhotosByAlbum(selectedAlbumId, (data) => setPhotos(data));
+    console.log(`Subscribing to photos for album ${selectedAlbumId}`);
+    const unsubscribe = storage.getPhotosByAlbum(selectedAlbumId, (data) => {
+      console.log(`Received ${data.length} photos for album ${selectedAlbumId}`);
+      setPhotos(data);
+    });
     return () => unsubscribe();
   }, [selectedAlbumId]);
 
@@ -248,36 +252,69 @@ function AppContent() {
       await storage.saveAlbum(data);
       toast.success('Album created successfully');
     } else {
+      if (!selectedAlbumId) {
+        toast.error('No album selected for upload');
+        return;
+      }
+
       const files = Array.from(data as FileList);
       const total = files.length;
       let completed = 0;
+      let failed = 0;
       
+      console.log(`Starting bulk upload of ${total} files to album ${selectedAlbumId}`);
       const uploadToast = toast.loading(`Uploading 0/${total} photos...`);
       
       try {
-        // Use allSettled to ensure we get results for all files even if some fail
-        const results = await Promise.allSettled(files.map(async (file) => {
-          await storage.uploadPhoto(selectedAlbumId!, file);
-          completed++;
-          toast.loading(`Uploading ${completed}/${total} photos...`, { id: uploadToast });
-        }));
+        // Use a map to track progress of each file
+        const progressMap = new Map<number, number>();
         
-        const successful = results.filter(r => r.status === 'fulfilled').length;
-        const failed = results.filter(r => r.status === 'rejected').length;
+        const uploadPromises = files.map(async (file, index) => {
+          try {
+            console.log(`Processing file ${index + 1}/${total}: ${file.name}`);
+            // Add a timeout to each individual upload
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error(`Upload for ${file.name} timed out after 60 seconds`)), 60000)
+            );
 
+            const uploadPromise = storage.uploadPhoto(selectedAlbumId!, file, (progress) => {
+              progressMap.set(index, progress);
+              const totalProgress = Array.from(progressMap.values()).reduce((a, b) => a + b, 0) / total;
+              toast.loading(`Uploading ${completed}/${total} photos (${Math.round(totalProgress)}%)...`, { id: uploadToast });
+            });
+
+            await Promise.race([uploadPromise, timeoutPromise]);
+            completed++;
+            console.log(`Successfully uploaded ${file.name}`);
+          } catch (error) {
+            console.error(`Failed to upload file ${index} (${file.name}):`, error);
+            failed++;
+          } finally {
+            toast.loading(`Uploading ${completed + failed}/${total} photos...`, { id: uploadToast });
+          }
+        });
+
+        await Promise.all(uploadPromises);
+        console.log(`Bulk upload finished. Completed: ${completed}, Failed: ${failed}`);
+        
         if (failed === 0) {
           toast.success(`Successfully uploaded ${total} images!`, { 
             id: uploadToast,
             description: "All photos are now available in the album."
           });
-        } else {
+        } else if (completed > 0) {
           toast.error(`Upload completed with issues`, {
             id: uploadToast,
-            description: `Successfully uploaded ${successful} photos. ${failed} photos failed to upload.`
+            description: `Successfully uploaded ${completed} photos. ${failed} photos failed to upload.`
+          });
+        } else {
+          toast.error(`Upload failed`, {
+            id: uploadToast,
+            description: `All ${failed} photos failed to upload. Please check your connection.`
           });
         }
       } catch (error) {
-        console.error('Upload process error:', error);
+        console.error('Bulk upload process error:', error);
         toast.error('An unexpected error occurred during upload', { id: uploadToast });
       }
     }

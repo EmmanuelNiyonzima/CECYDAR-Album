@@ -3,11 +3,13 @@ import {
   db, 
   storage_bucket,
   ref,
-  uploadBytes,
+  uploadBytesResumable,
   getDownloadURL,
   deleteObject,
   OperationType, 
-  handleFirestoreError 
+  handleFirestoreError,
+  auth,
+  testFirestoreConnection
 } from './firebase';
 import { 
   collection, 
@@ -26,20 +28,23 @@ import {
 export const storage = {
   testConnection: async () => {
     try {
-      const { testFirestoreConnection } = await import('./firebase');
       await testFirestoreConnection();
       return true;
     } catch (e) {
+      console.error('Connection test failed:', e);
       return false;
     }
   },
 
   getAlbums: (callback: (albums: Album[]) => void) => {
+    console.log('Fetching albums...');
     const q = query(collection(db, 'albums'), orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
+      console.log(`Received ${snapshot.size} albums`);
       const albums = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Album));
       callback(albums);
     }, (error) => {
+      console.error('getAlbums error:', error);
       handleFirestoreError(error, OperationType.LIST, 'albums');
     });
   },
@@ -86,44 +91,82 @@ export const storage = {
   },
 
   getPhotosByAlbum: (albumId: string, callback: (photos: Photo[]) => void) => {
+    console.log(`Fetching photos for album: ${albumId}`);
     const q = query(
       collection(db, 'photos'), 
       where('albumId', '==', albumId)
     );
     return onSnapshot(q, (snapshot) => {
+      console.log(`Received ${snapshot.size} photos for album ${albumId}`);
       const photos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Photo));
       // Sort client-side to avoid needing a composite index in Firestore
-      photos.sort((a, b) => b.createdAt - a.createdAt);
+      photos.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       callback(photos);
     }, (error) => {
+      console.error(`getPhotosByAlbum error for ${albumId}:`, error);
       handleFirestoreError(error, OperationType.LIST, `photos?albumId=${albumId}`);
     });
   },
 
-  uploadPhoto: async (albumId: string, file: File): Promise<void> => {
+  uploadPhoto: async (albumId: string, file: File, onProgress?: (progress: number) => void): Promise<void> => {
+    console.log(`Starting upload for file: ${file.name} to album: ${albumId}`);
     try {
+      if (!auth.currentUser) {
+        throw new Error('User must be authenticated to upload photos');
+      }
+
       // 1. Pre-generate a Firestore document reference to get a unique ID
       const photoDocRef = doc(collection(db, 'photos'));
       const photoId = photoDocRef.id;
+      console.log(`Generated photo ID: ${photoId}`);
 
       // 2. Upload to Firebase Storage using this ID as the filename
       const storageRef = ref(storage_bucket, `photos/${photoId}`);
-      await uploadBytes(storageRef, file);
+      
+      console.log('Initiating storage upload task...');
+      const uploadTask = uploadBytesResumable(storageRef, file);
 
-      // 3. Get the download URL
-      const downloadUrl = await getDownloadURL(storageRef);
+      return new Promise((resolve, reject) => {
+        uploadTask.on('state_changed', 
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            console.log(`Upload progress for ${file.name}: ${Math.round(progress)}%`);
+            if (onProgress) onProgress(progress);
+          }, 
+          (error) => {
+            console.error('Storage upload error:', error);
+            handleFirestoreError(error, OperationType.CREATE, 'photos/storage');
+            reject(error);
+          }, 
+          async () => {
+            console.log(`Storage upload complete for ${file.name}, getting download URL...`);
+            try {
+              // 3. Get the download URL
+              const downloadUrl = await getDownloadURL(storageRef);
+              console.log(`Download URL obtained: ${downloadUrl}`);
 
-      // 4. Create the Firestore document with the URL
-      // We use setDoc because we already have the doc reference with the ID
-      await setDoc(photoDocRef, {
-        albumId,
-        url: downloadUrl,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        createdAt: Date.now(),
+              // 4. Create the Firestore document with the URL
+              console.log('Creating Firestore record...');
+              await setDoc(photoDocRef, {
+                albumId,
+                url: downloadUrl,
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                createdAt: Date.now(),
+              });
+              console.log('Firestore record created successfully');
+              resolve();
+            } catch (error) {
+              console.error('Firestore photo record creation error:', error);
+              handleFirestoreError(error, OperationType.CREATE, 'photos/firestore');
+              reject(error);
+            }
+          }
+        );
       });
     } catch (error) {
+      console.error('uploadPhoto outer catch:', error);
       handleFirestoreError(error, OperationType.CREATE, 'photos');
       throw error;
     }
