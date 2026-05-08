@@ -28,9 +28,11 @@
         "size": { "type": "number" },
         "type": { "type": "string" },
         "createdAt": { "type": "number" },
-        "tags": { "type": "array", "items": { "type": "string" } }
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "uploadedBy": { "type": "string" },
+        "uploaderEmail": { "type": "string" }
       },
-      "required": ["albumId", "url", "name", "createdAt"]
+      "required": ["albumId", "url", "name", "createdAt", "uploadedBy", "uploaderEmail"]
     },
     "User": {
       "title": "User",

@@ -22,6 +22,8 @@ export interface Photo {
   type: string;
   createdAt: number;
   tags?: string[];
+  uploadedBy?: string;
+  uploaderEmail?: string;
 }
 
 export interface User {

@@ -166,6 +166,8 @@ export const storage = {
                 size: file.size,
                 type: file.type,
                 createdAt: Date.now(),
+                uploadedBy: auth.currentUser?.uid,
+                uploaderEmail: auth.currentUser?.email,
               });
               console.log('Firestore record created successfully');
               resolve();

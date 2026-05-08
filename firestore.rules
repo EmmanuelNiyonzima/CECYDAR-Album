@@ -61,11 +61,13 @@ service cloud.firestore {
     }
 
     function isValidPhoto(data) {
-      return data.keys().hasAll(['albumId', 'url', 'name', 'createdAt']) &&
+      return data.keys().hasAll(['albumId', 'url', 'name', 'createdAt', 'uploadedBy', 'uploaderEmail']) &&
              data.albumId is string &&
              data.url is string &&
              data.name is string && data.name.size() < 255 &&
              data.createdAt is number &&
+             data.uploadedBy == request.auth.uid &&
+             data.uploaderEmail == request.auth.token.email &&
              (!('tags' in data) || data.tags is list);
     }
 
@@ -79,13 +81,13 @@ service cloud.firestore {
     }
 
     match /albums/{albumId} {
-      allow read: if true; 
+      allow read: if isAuthenticated(); 
       allow create, update: if isAdmin() && isValidAlbum(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /photos/{photoId} {
-      allow read: if true; 
+      allow read: if isAuthenticated(); 
       allow create: if isContributor() && isValidPhoto(request.resource.data);
       allow update: if isContributor() && isValidPhoto(request.resource.data);
       allow delete: if isAdmin();

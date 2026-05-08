@@ -136,6 +136,7 @@ function AppContent() {
         });
       } else {
         setUser(null);
+        setView('login'); // Redirect to login if not authenticated
       }
       setIsAuthReady(true);
     });
