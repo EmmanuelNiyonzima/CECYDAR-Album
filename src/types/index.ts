@@ -24,6 +24,7 @@ export interface Photo {
   tags?: string[];
   uploadedBy?: string;
   uploaderEmail?: string;
+  eventName?: string;
 }
 
 export interface User {

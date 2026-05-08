@@ -23,7 +23,8 @@ import {
   deleteDoc, 
   doc, 
   setDoc,
-  getDoc
+  getDoc,
+  serverTimestamp
 } from 'firebase/firestore';
 
 export const storage = {
@@ -120,68 +121,83 @@ export const storage = {
   },
 
   uploadPhoto: async (albumId: string, file: File, onProgress?: (progress: number) => void): Promise<void> => {
-    console.log(`Starting upload for file: ${file.name} to album: ${albumId}`);
+    console.log(`[STORAGE] Starting upload for: ${file.name} to album: ${albumId}`);
+    
     try {
       if (!auth.currentUser) {
-        throw new Error('User must be authenticated to upload photos');
+        console.error('[STORAGE] User not authenticated');
+        throw new Error('Please login before uploading photos.');
       }
 
-      // 1. Pre-generate a Firestore document reference to get a unique ID
+      // Fetch album details to get the name for 'eventName'
+      const albumDoc = await getDoc(doc(db, 'albums', albumId));
+      const albumData = albumDoc.data();
+      const eventName = albumData?.title || "General";
+
+      // 1. Pre-generate ID
       const photoDocRef = doc(collection(db, 'photos'));
       const photoId = photoDocRef.id;
-      console.log(`Generated photo ID: ${photoId}`);
-
-      // 2. Upload to Firebase Storage using this ID as the filename
-      const storageRef = ref(storage_bucket, `photos/${photoId}`);
       
-      console.log('Initiating storage upload task...');
+      // 2. Upload to Firebase Storage with organized path: photos/{albumId}/{photoId}_{fileName}
+      const storagePath = `photos/${albumId}/${photoId}_${file.name}`;
+      const storageRef = ref(storage_bucket, storagePath);
+      
+      console.log(`[STORAGE] Uploading to: ${storagePath}`);
       const uploadTask = uploadBytesResumable(storageRef, file);
 
       return new Promise((resolve, reject) => {
+        // Initial progress to show activity
+        if (onProgress) onProgress(1);
+
         uploadTask.on('state_changed', 
           (snapshot) => {
             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            console.log(`Upload progress for ${file.name}: ${Math.round(progress)}%`);
-            if (onProgress) onProgress(progress);
+            console.log(`[STORAGE] Progress for ${file.name}: ${Math.round(progress)}%`);
+            if (onProgress) onProgress(progress || 1); // Ensure at least 1% to show it started
           }, 
           (error) => {
-            console.error('Storage upload error:', error);
-            // Storage errors can have different codes, handle accordingly
-            handleFirestoreError(error, OperationType.CREATE, 'photos/storage');
+            console.error('[STORAGE] Task error:', error);
+            handleFirestoreError(error, OperationType.CREATE, `storage/${storagePath}`);
             reject(error);
           }, 
           async () => {
-            console.log(`Storage upload complete for ${file.name}, getting download URL...`);
+            console.log(`[STORAGE] Upload complete for ${file.name}. Getting download URL...`);
             try {
-              // 3. Get the download URL
+              // 3. Get the real browser URL (not gs://)
               const downloadUrl = await getDownloadURL(storageRef);
-              console.log(`Download URL obtained: ${downloadUrl}`);
+              console.log(`[STORAGE] Download URL: ${downloadUrl}`);
 
-              // 4. Create the Firestore document with the URL
-              console.log('Creating Firestore record...');
+              // 4. Save metadata to Firestore
+              console.log('[STORAGE] Saving to Firestore...');
               await setDoc(photoDocRef, {
                 albumId,
                 url: downloadUrl,
+                imageUrl: downloadUrl, // specifically asked for imageUrl field
                 name: file.name,
+                fileName: file.name, // specifically asked for fileName field
+                storagePath: storagePath, // specifically asked for storagePath field
                 size: file.size,
                 type: file.type,
                 createdAt: Date.now(),
+                uploadedAt: serverTimestamp(), // specifically asked for uploadedAt
                 uploadedBy: auth.currentUser?.uid,
                 uploaderEmail: auth.currentUser?.email,
+                eventName: eventName
               });
-              console.log('Firestore record created successfully');
+              
+              console.log('[STORAGE] Firestore record saved successfully');
+              if (onProgress) onProgress(100);
               resolve();
             } catch (error) {
-              console.error('Firestore photo record creation error:', error);
-              handleFirestoreError(error, OperationType.CREATE, 'photos/firestore');
+              console.error('[STORAGE] Post-upload error:', error);
+              handleFirestoreError(error, OperationType.CREATE, 'photos/metadata');
               reject(error);
             }
           }
         );
       });
     } catch (error) {
-      console.error('uploadPhoto outer catch:', error);
-      handleFirestoreError(error, OperationType.CREATE, 'photos');
+      console.error('[STORAGE] uploadPhoto failed:', error);
       throw error;
     }
   },
