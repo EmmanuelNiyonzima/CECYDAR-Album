@@ -3,6 +3,7 @@ import {
   db, 
   storage_bucket,
   ref,
+  uploadBytes,
   uploadBytesResumable,
   getDownloadURL,
   deleteObject,
@@ -63,30 +64,40 @@ export const storage = {
   },
 
   deleteAlbum: async (id: string) => {
+    console.log(`Starting deletion of album: ${id}`);
     try {
-      // Get associated photos to delete from Storage first
+      // 1. Get all photos in the album
       const q = query(collection(db, 'photos'), where('albumId', '==', id));
       const snapshot = await getDocs(q);
+      console.log(`Found ${snapshot.size} photos to delete for album ${id}`);
       
-      const deletePromises = snapshot.docs.map(async (d) => {
-        const photoData = d.data();
+      // 2. Delete each photo from Storage and Firestore
+      const deletePromises = snapshot.docs.map(async (photoDoc) => {
+        const photoId = photoDoc.id;
+        console.log(`Deleting photo: ${photoId}`);
         // Delete from Storage
+        const storageRef = ref(storage_bucket, `photos/${photoId}`);
         try {
-          const storageRef = ref(storage_bucket, `photos/${d.id}`);
           await deleteObject(storageRef);
+          console.log(`Deleted from Storage: ${photoId}`);
         } catch (e) {
-          console.warn('Could not delete file from storage:', e);
+          console.warn(`Storage object already deleted or missing for ${photoId}:`, e);
         }
         // Delete from Firestore
-        return deleteDoc(doc(db, 'photos', d.id));
+        await deleteDoc(doc(db, 'photos', photoId));
+        console.log(`Deleted from Firestore: ${photoId}`);
       });
       
       await Promise.all(deletePromises);
+      console.log('All photos deleted, now deleting album record...');
       
-      // Delete album
+      // 3. Delete the album itself
       await deleteDoc(doc(db, 'albums', id));
+      console.log(`Album ${id} deleted successfully`);
     } catch (error) {
+      console.error(`Error deleting album ${id}:`, error);
       handleFirestoreError(error, OperationType.DELETE, `albums/${id}`);
+      throw error;
     }
   },
 
@@ -135,6 +146,7 @@ export const storage = {
           }, 
           (error) => {
             console.error('Storage upload error:', error);
+            // Storage errors can have different codes, handle accordingly
             handleFirestoreError(error, OperationType.CREATE, 'photos/storage');
             reject(error);
           }, 

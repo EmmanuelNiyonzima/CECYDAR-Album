@@ -272,9 +272,9 @@ function AppContent() {
         const uploadPromises = files.map(async (file, index) => {
           try {
             console.log(`Processing file ${index + 1}/${total}: ${file.name}`);
-            // Add a timeout to each individual upload
+            // Add a timeout to each individual upload (increased to 5 minutes)
             const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error(`Upload for ${file.name} timed out after 60 seconds`)), 60000)
+              setTimeout(() => reject(new Error(`Upload for ${file.name} timed out after 5 minutes`)), 300000)
             );
 
             const uploadPromise = storage.uploadPhoto(selectedAlbumId!, file, (progress) => {
